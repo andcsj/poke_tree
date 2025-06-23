@@ -11,6 +11,7 @@
 #include <queue>
 #include <functional>
 #include <unordered_set>
+#include <iomanip>
 
 using namespace std;
 
@@ -54,9 +55,15 @@ private:
 
     size_t hash(int id, int tentativa = 0, int cap = -1) const {
         if (cap == -1) cap = capacidade;
-        const size_t primo = 2654435761;
-        size_t h = id * primo;
-        return (h + tentativa * (h >> 16)) % cap;
+        
+        // Primeira função hash
+        size_t h1 = id % capacidade;
+        
+        // Segunda função hash para double hashing
+        size_t h2 = 1 + (id % (capacidade - 1));
+        
+        // Combinação com tentativa
+        return (h1 + tentativa * h2) % capacidade;
     }
 
     void rehash() {
@@ -264,24 +271,38 @@ public:
 
     void exibirTopCartas(int limite = 20) const {
         cout << "\n=== Top " << limite << " Cartas (Maior Rating) ===\n";
-        vector<shared_ptr<Carta>> cartas;
-
-        function<void(const unique_ptr<NodeAVL>&)> coletar = 
-            [&](const unique_ptr<NodeAVL>& node) {
-                if (!node) return;
-                coletar(node->direita);
-                cartas.push_back(node->carta);
-                coletar(node->esquerda);
-            };
+        
+        // Usando uma min-heap para eficiência
+        priority_queue<
+            shared_ptr<Carta>,
+            vector<shared_ptr<Carta>>,
+            function<bool(shared_ptr<Carta>, shared_ptr<Carta>)>
+        > heap([](const auto& a, const auto& b) { return a->rating > b->rating; });
+    
+        // Coleta todas as cartas
+        function<void(const unique_ptr<NodeAVL>&)> coletar = [&](const unique_ptr<NodeAVL>& node) {
+            if (!node) return;
+            coletar(node->esquerda);
+            heap.push(node->carta);
+            if (heap.size() > limite) heap.pop();
+            coletar(node->direita);
+        };
+        
         coletar(raizAVL);
-
-        // Ordena por rating decrescente
-        sort(cartas.begin(), cartas.end(), 
-            [](const auto& a, const auto& b) { return a->rating > b->rating; });
-
-        for (int i = 0; i < min(limite, (int)cartas.size()); i++) {
-            cout << i+1 << ". ID: " << cartas[i]->id 
-                 << " | Rating: " << cartas[i]->rating << "\n";
+    
+        // Extrai em ordem decrescente
+        vector<shared_ptr<Carta>> topCartas;
+        while (!heap.empty()) {
+            topCartas.push_back(heap.top());
+            heap.pop();
+        }
+        
+        reverse(topCartas.begin(), topCartas.end());
+    
+        // Exibe os resultados
+        for (size_t i = 0; i < topCartas.size(); i++) {
+            cout << i+1 << ". ID: " << topCartas[i]->id 
+                 << " | Rating: " << topCartas[i]->rating << "\n";
         }
     }
 
@@ -299,13 +320,118 @@ public:
         montarBSTPorRating(rating, opcao == 1);
     }
 
-    void excluirPorId(int id) {
-        cout << "Exclusão ainda não implementada.\n";
+    unique_ptr<NodeAVL> removerAVL(unique_ptr<NodeAVL> node, int id) {
+        if (!node) return nullptr;
+    
+        if (id < node->carta->id) {
+            node->esquerda = removerAVL(move(node->esquerda), id);
+        } else if (id > node->carta->id) {
+            node->direita = removerAVL(move(node->direita), id);
+        } else {
+            if (!node->esquerda || !node->direita) {
+                node = move(node->esquerda ? node->esquerda : node->direita);
+            } else {
+                auto sucessor = node->direita.get();
+                while (sucessor->esquerda) sucessor = sucessor->esquerda.get();
+                node->carta = sucessor->carta;
+                node->direita = removerAVL(move(node->direita), sucessor->carta->id);
+            }
+        }
+    
+        if (!node) return nullptr;
+    
+        node->altura = 1 + max(altura(node->esquerda), altura(node->direita));
+        int balance = altura(node->esquerda) - altura(node->direita);
+    
+        // Rotações para balanceamento
+        if (balance > 1) {
+            if (altura(node->esquerda->esquerda) >= altura(node->esquerda->direita)) {
+                return rotacionarDireita(move(node));
+            } else {
+                node->esquerda = rotacionarEsquerda(move(node->esquerda));
+                return rotacionarDireita(move(node));
+            }
+        }
+        if (balance < -1) {
+            if (altura(node->direita->direita) >= altura(node->direita->esquerda)) {
+                return rotacionarEsquerda(move(node));
+            } else {
+                node->direita = rotacionarDireita(move(node->direita));
+                return rotacionarEsquerda(move(node));
+            }
+        }
+    
+        return node;
     }
 
+    void excluirPorId(int id) {
+        // Remove da tabela hash
+        size_t indice = hash(id);
+        auto& bucket = tabelaHash[indice];
+        for (auto it = bucket.begin(); it != bucket.end(); ++it) {
+            if ((*it)->id == id) {
+                bucket.erase(it);
+                tamanho--;
+                break;
+            }
+        }
+        
+        // Remove da AVL
+        raizAVL = removerAVL(move(raizAVL), id);
+        cout << "Carta com ID " << id << " removida com sucesso!\n";
+    }
+    
     void destruirArvore() {
+        // Limpa todos os buckets da tabela hash
+        for (auto& bucket : tabelaHash) {
+            bucket.clear();
+        }
+        
+        // Destrói a árvore AVL
         raizAVL.reset();
-        cout << "Árvore destruída.\n";
+        
+        // Reseta o contador de cartas
+        tamanho = 0;
+        
+        cout << "Todas as cartas foram removidas e a árvore foi reinicializada.\n";
+    }
+    
+    void exibirEstatisticas() const {
+        cout << "\n=== ESTATÍSTICAS AVANÇADAS ===\n";
+        
+        // Contagem básica
+        int total = contarNosAVL();
+        cout << "Total de cartas: " << total << endl;
+        
+        // Memória aproximada
+        cout << "Memória aproximada: " << (total * 128)/1024 << " KB\n";
+        
+        // Estatísticas da tabela hash
+        int colisoes = 0;
+        int bucketMax = 0;
+        int bucketsVazios = 0;
+        
+        for (const auto& bucket : tabelaHash) {
+            if (bucket.empty()) bucketsVazios++;
+            if (bucket.size() > 1) colisoes += bucket.size() - 1;
+            if (bucket.size() > bucketMax) bucketMax = bucket.size();
+        }
+        
+        cout << "\n=== TABELA HASH ===\n";
+        cout << "Capacidade: " << capacidade << endl;
+        cout << "Fator de carga: " << fixed << setprecision(2) 
+             << (float)tamanho/capacidade << endl;
+        cout << "Colisões totais: " << colisoes << endl;
+        cout << "Buckets vazios: " << bucketsVazios << " (" 
+             << (bucketsVazios*100.0f/capacidade) << "%)" << endl;
+        cout << "Maior bucket: " << bucketMax << " elementos" << endl;
+        
+        // Estatísticas da AVL
+        if (raizAVL) {
+            cout << "\n=== ÁRVORE AVL ===\n";
+            cout << "Altura da árvore: " << altura(raizAVL) << endl;
+            cout << "Altura teórica mínima: " << floor(log2(total)) + 1 << endl;
+        }
     }
 };
 
@@ -396,13 +522,10 @@ int main() {
                 break;
             }
             case 9: {
-                cout << "\n=== ESTATÍSTICAS ===\n";
-                cout << "Total de cartas: " << gerenciador.contarNosAVL() << endl;
-                cout << "Memória aproximada: " << (gerenciador.contarNosAVL() * 128)/1024 << " KB\n";
+                gerenciador.exibirEstatisticas();
                 break;
             }
-
-            case 10: {  // Opção para exibir todos os IDs
+            case 10: {
                 gerenciador.exibirArvoreAVLCompleta();
                 break;
             }
