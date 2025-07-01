@@ -96,6 +96,12 @@ O sistema permite:
 - `libcurl`: para requisições HTTP
 - `nlohmann/json`: para parsing de JSON
 - Compilador compatível com C++17 ou superior
+  
+```bash
+sudo apt update
+sudo apt install libcurl4-openssl-dev
+sudo apt install nlohmann-json3-dev
+sudo apt install build-essential
 
 ---
 
