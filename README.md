@@ -141,17 +141,3 @@ O programa oferece 15 opções via terminal:
 - Compilador compatível com C++11 ou superior
 
 ---
-
-## Limitações
-
-- Suporte apenas ao tipo de carta "Pokémon"
-- `resistencia` fixada em 0 nas cartas importadas da API
-- `rating` gerado aleatoriamente para cartas da API
-
----
-
-## Compilação e Execução
-
-```bash
-make
-./gerenciador_cartas
