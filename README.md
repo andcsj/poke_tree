@@ -102,4 +102,4 @@ O sistema permite:
 ## Como Compilar
 
 ```bash
-g++ -std=c++17 -lcurl -o poketree poketree.cpp
+g++ -lcurl -o poketree poketree.cpp
