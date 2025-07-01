@@ -5,10 +5,10 @@ Este projeto implementa um sistema completo para gerenciamento de cartas Pokémo
 ## Visão Geral
 
 O sistema permite:
-- Importar cartas de diferentes fontes (API, CSV ou manualmente)
-- Realizar buscas complexas
-- Exibir estatísticas
-- Gerenciar e exportar sua coleção de cartas
+- Importar cartas da Pokémon TCG API
+- Armazenar cartas em múltiplas estruturas eficientes
+- Buscar cartas por ID ou nome
+- Garantir balanceamento e desempenho com AVL e hash dinâmico
 
 ---
 
@@ -20,124 +20,86 @@ O sistema permite:
 ### Estruturas de Dados
 - `Carta`: Armazena os dados de uma carta Pokémon:
   - `id`, `nome`, `jogo`, `poder`, `resistencia`, `tipos`, `rating`
-- `NodeAVL`: Nó da árvore AVL (balanceada por `id`)
-- `NodeBST`: Nó da árvore BST (utilizada para exibição por `rating`)
+- `NodeAVL`: Nó da árvore AVL (balanceada por nome)
+- `NodeBST`: Nó da árvore BST (pode ser usada para ordenação alternativa)
+- `tabelaHash`: Vetor de listas encadeadas com controle de colisão por encadeamento separado
 
 ---
 
 ## Classe Principal: GerenciadorCartas
 
 ### Atributos Privados
-- `tabelaHash`: Vetor de listas encadeadas para armazenamento das cartas
+- `tabelaHash`: Vetor de listas de ponteiros compartilhados
 - `tamanho`: Número atual de cartas
-- `capacidade`: Tamanho da tabela hash
+- `capacidade`: Tamanho atual da hash table
 - `LIMITE_CARGA`: Fator de carga máximo antes de rehash (0.7)
-- `raizAVL`: Ponteiro para a raiz da árvore AVL
+- `raizAVL`: Raiz da árvore AVL
 
 ---
 
 ## Métodos Principais
 
-### 1. Operações Básicas
-- `adicionarCarta()`: Adiciona uma nova carta
-- `cartaExiste()`: Verifica existência por ID
-- `buscarPorId()`: Busca rápida usando hash
-- `buscarPorNome()`: Busca linear por substring no nome
-- `buscarPorRating()`: Busca intervalo de ratings via AVL
+### 1. Operações Internas
+- `hash()`: Calcula o índice com double hashing
+- `rehash()`: Duplica a capacidade da tabela hash e redistribui os elementos
+- `altura()`: Calcula a altura de um nó AVL
+- `rotacionarDireita()`, `rotacionarEsquerda()`: Rotacionam subárvores AVL
+- `inserirAVL()`: Insere carta na árvore AVL com balanceamento
+- `buscarPorId()`: Busca carta por ID na hash table
+- `buscarPorNome()`: Busca na árvore AVL por nome
 
-### 2. Importação de Dados
-- `carregarDaAPI()`: Importa cartas da Pokémon TCG API
-- `inserirPorCSV()`: Lê e importa cartas de um arquivo `.csv`
-- `inserirManual()`: Inserção manual via terminal
-
-### 3. Visualização
-- `exibirArvoreAVL()`: Mostra estrutura AVL
-- `exibirTopCartas()`: Exibe cartas com maior `rating`
-- `exibirArvoreAVLCompleta()`: Lista todas as cartas ordenadas por `id`
-- `montarBSTPorRating()`: Cria e exibe BST temporária por `rating`
-
-### 4. Gerenciamento de Memória
-- `removerAVL()`: Remove nó AVL com balanceamento
-- `excluirPorId()`: Remove uma carta específica
-- `limparSeguro()`: Limpa todas as estruturas
-- `destruirArvore()`: Reseta o sistema
-
-### 5. Estatísticas
-- `exibirEstatisticas()`: Mostra métricas de desempenho
-- `contarNosAVL()`: Retorna número de cartas na AVL
-
-### 6. Exportação
-- `exportarParaCSV()`: Salva todas as cartas em `.csv`
+### 2. Importação de Dados (a partir de `libcurl`)
+- `carregarDaAPI()`: (presumivelmente implementado em outro trecho do código) carrega cartas da API da Pokémon TCG
 
 ---
 
-## Métodos Auxiliares
+## Recursos Suportados
 
-- Funções de hash e rehash
-- Operações de rotação e balanceamento AVL
-- Funções de leitura segura de entrada (`lerInteiro`, `lerFloat`)
-- Callback de requisição HTTP via `libcurl`
-
----
-
-## Menu Interativo
-
-O programa oferece 15 opções via terminal:
-
-1. Carregar da API  
-2. Carregar de CSV  
-3. Inserção manual  
-4. Exibir estrutura AVL  
-5. Exibir top cartas  
-6. Listar todas as cartas  
-7. Buscar por ID  
-8. Buscar por nome  
-9. Buscar por rating  
-10. Verificar quantidade  
-11. Montar BST por rating  
-12. Excluir carta  
-13. Destruir árvore  
-14. Exibir estatísticas  
-15. Exportar para CSV  
-16. Sair  
+- Armazenamento eficiente via ponteiros inteligentes (`shared_ptr`, `unique_ptr`)
+- Balanceamento automático da árvore AVL
+- Hash table com tratamento robusto de colisões
+- Estrutura modular para fácil extensão
 
 ---
 
 ## Estruturas de Dados Utilizadas
 
 ### 1. Tabela Hash
-- Encadeamento separado
-- Função hash com multiplicação + double hashing
-- Rehash automático ao atingir 70% de carga
+- Utiliza vetor de listas (`vector<list<shared_ptr<Carta>>>`)
+- Tratamento de colisões com encadeamento separado
+- Rehash automático baseado no fator de carga (>= 0.7)
 
 ### 2. Árvore AVL
 - Balanceada automaticamente
-- Ordenada por ID
-- Suporte a buscas por intervalo de ratings
+- Baseada em nome de carta
+- Inserção com rotações simples e duplas
 
 ### 3. Árvore BST
-- Construída temporariamente para exibição
-- Ordenada por `rating`
-- Destruída após uso
+- Estrutura auxiliar com potencial para ordenação por outro critério (ex: rating)
 
 ---
 
 ## Desempenho
 
-| Operação          | Complexidade |
-|-------------------|--------------|
-| Inserção          | O(1) (hash) + O(log n) (AVL) |
-| Busca por ID      | O(1) esperado |
-| Busca por nome    | O(n) |
-| Busca por rating  | O(n) (percurso in-order na AVL) |
+| Operação          | Complexidade esperada |
+|-------------------|-----------------------|
+| Inserção Hash     | O(1) médio |
 | Rehash            | O(n) |
+| Inserção AVL      | O(log n) |
+| Busca por ID      | O(1) esperado |
+| Busca por nome    | O(log n) (AVL) |
 
 ---
 
 ## Dependências
 
-- `libcurl`: para requisições HTTP  
-- `nlohmann/json`: para manipulação de JSON  
-- Compilador compatível com C++11 ou superior
+- `libcurl`: para requisições HTTP
+- `nlohmann/json`: para parsing de JSON
+- Compilador compatível com C++17 ou superior
 
 ---
+
+## Como Compilar
+
+```bash
+g++ -std=c++17 -lcurl -o poketree poketree.cpp
