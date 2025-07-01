@@ -83,10 +83,10 @@ O sistema permite:
 
 | Operação          | Complexidade esperada |
 |-------------------|-----------------------|
-| Inserção Hash     | O(1) |
+| Inserção Hash     | O(n) |
 | Rehash            | O(n) |
 | Inserção AVL      | O(log n) |
-| Busca por ID      | O(1) |
+| Busca por ID      | O(n) |
 | Busca por nome    | O(log n) (AVL) |
 
 ---
