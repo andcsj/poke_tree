@@ -1,3 +1,5 @@
+//Envio do trabalho final -Tabelas Hash
+//Nomes: André Campos Silva Junior e Gabriel Almeida Della Croce
 #include <iostream>
 #include <string>
 #include <vector>
